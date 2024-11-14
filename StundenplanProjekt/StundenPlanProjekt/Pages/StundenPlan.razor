@@ -1,0 +1,94 @@
+﻿<!-- Stundenplan.razor -->
+@page "/Stundenplan"
+@inject StundenPlanProjekt.Models.Storage Storage
+<h3>Stundenplan anzeigen</h3>
+
+<th>Ausbildungstyp</th>
+<div class="mb-3">
+    <div class="form-floating">
+        <select class="form-select" id="AusbildungstypFürStundenplan" aria-label="Floating label select example" @bind="entry.Ausbildungstyp">
+            <option value=""> </option>
+            @foreach (var ausbildungstyp in Storage.ListAusbildungstyp())
+            {
+                <option value="@ausbildungstyp.Name">@ausbildungstyp.Name </option>
+            }
+
+        </select>
+        <label for="floatingSelect">Wählen Sie Ihren Ausbildungstyp</label>
+    </div>
+</div>
+
+<th>Tage</th>
+<div class="mb-3">
+    <div class="form-floating">
+        <select class="form-select" id="TageFürStundenplan" aria-label="Floating label select example" @bind="entry.Day">
+            <option value="Monday">Monday</option>
+            <option value="Tuesday">Tuesday</option>
+            <option value="Wednesday">Wednesday</option>
+            <option value="Thursday">Thursday</option>
+            <option value="Friday">Friday</option>
+        </select>
+        <label for="floatingSelect">Wählen Sie Ihre Tage</label>
+    </div>
+</div>
+
+<th>Stunden</th>
+<div class="mb-3">
+    <label for="hour" class="form-label">Hour:</label>
+    <input id="hour" type="number" min="8" max="17" class="form-control" @bind="entry.Hour" />
+</div>
+
+<th>Module</th>
+@if (entry.Ausbildungstyp != null && entry.Ausbildungstyp != "")
+{
+    <div class="mb-3">
+        <div class="form-floating">
+            <select class="form-select" id="ModuleFürStundenplan" aria-label="Floating label select example" @bind="entry.Module">
+                @foreach (var module in Storage.GetAusbildungstyp(entry.Ausbildungstyp).Modules())
+                {
+                    <option value="@module">@module</option>
+                }
+            </select>
+            <label for="floatingSelect">Wählen Sie Ihr Modul</label>
+        </div>
+    </div>
+}
+
+<br/>
+<th>Lehrer</th>
+@if (entry.Day != null && entry.Day != "")
+{
+    <div class="mb-3">
+        <div class="form-floating">
+            <select class="form-select" id="LehrerFürStundenplan" aria-label="Floating label select example" @bind="entry.Lehrer">
+                @foreach (var lehrer in Storage.GetAvailableLehrer(entry.Day))
+                {
+                    <option value="@lehrer.ID">@lehrer.Name</option>
+                }
+            </select>
+            <label for="floatingSelect">Wählen Sie Ihre Lehrperson</label>
+        </div>
+    </div>
+}
+
+
+<th>Raum</th>
+<div class="mb-3">
+    <div class="form-floating">
+        <select class="form-select" id="RaumFürStundenplan" aria-label="Floating label select example" @bind="entry.Room">
+            <option value=""> </option>
+            @foreach (var room in Storage.ListRaum())
+            {
+                <option value="@room.Name">@room.Name </option>
+            }
+
+        </select>
+        <label for="floatingSelect">Wählen Sie Ihren Raum</label>
+    </div>
+</div>
+
+<button type="button" class="btn btn-success">Generieren</button>
+    @code {
+        private Models.StundenPlanEntry entry = new Models.StundenPlanEntry();
+
+}

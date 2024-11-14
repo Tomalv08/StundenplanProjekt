@@ -1,0 +1,197 @@
+﻿<!-- LehrerList.razor -->
+@page "/LehrerList"
+@inject StundenPlanProjekt.Models.Storage Storage
+<h3>Lehrer verwalten</h3>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Nicht verfügbare Tage</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var lehrer in lehrerList())
+        {
+            <tr>
+                <td>@lehrer.Name</td>
+                <td>@string.Join(", ", lehrer.NichtVerfügbarTage)</td>
+                <td><button class="btn btn-primary" @onclick="() => EditLehrer(lehrer)">Bearbeiten</button></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (selectedLehrer != null)
+{
+    <div class="modal fade show" tabindex="-1" style="display: block; background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Lehrer bearbeiten</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <label for="editLehrerName" class="form-label">Name:</label>
+                    <input id="editLehrerName" class="form-control" @bind="PopUpLehrerName" />
+
+                    <label for="editLehrerNichtVerfügbarTage" class="form-label">Nicht verfügbare Tage (kommagetrennt):</label>
+                    <input id="editLehrerNichtVerfügbarTage" class="form-control" @bind="PopUpLehrerNichtVerfügbarTageText" />
+                    @if (editModalError)
+                    {
+                        <p style="color: red; padding-top: 10px;"> Der Name wird bereits verwendet oder Sie haben fehlerhafte Eingaben bei den verfügbaren Tagen (erlaubt ist: Monday, Tuesday, Wednesday, Thursday, Friday oder 1, 2, 3, 4, 5) oder Sie haben noch leere Eingaben!</p>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-success" @onclick="Speichern">Speichern</button>
+                    <button class="btn btn-danger" @onclick="Löschen">Löschen</button>
+                    <button class="btn btn-secondary" @onclick="CloseModal">Abbrechen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="mt-4">
+    <h4>Neuen Lehrer hinzufügen</h4>
+    @if (showErrorMessage)
+    {
+        <div class="alert alert-danger" role="alert">
+            Der Name wird bereits verwendet oder Sie haben fehlerhafte Eingaben bei den verfügbaren Tagen (erlaubt ist: Monday, Tuesday, Wednesday, Thursday, Friday oder 1, 2, 3, 4, 5) oder Sie haben noch leere Eingaben!
+        </div>
+    }
+    else if (showSuccessMessage)
+    {
+        <div class="alert alert-success" role="alert">
+            Eine neue Lehrperson wurde erfolgreich hinzugefügt!
+        </div>
+    }
+
+    <div class="mb-3">
+        <label for="neuerLehrerName" class="form-label">Name:</label>
+        <input id="neuerLehrerName" class="form-control" @bind="neuerLehrer.Name" />
+    </div>
+    <div class="mb-3">
+        <label for="nichtVerfügbareTage" class="form-label">Nicht verfügbare Tage (kommagetrennt):</label>
+        <input id="nichtVerfügbareTage" class="form-control" @bind="neuerLehrer.NichtVerfügbarTageText" />
+    </div>
+    <button class="btn btn-success" @onclick="Hinzufügen">Hinzufügen</button>
+</div>
+
+@code {
+
+    private Models.Lehrer neuerLehrer = new Models.Lehrer();
+    private Models.Lehrer selectedLehrer;
+    private string PopUpLehrerName;
+    private string PopUpLehrerNichtVerfügbarTageText;
+
+    private bool showErrorMessage = false;
+    private bool showSuccessMessage = false;
+    private bool editModalError = false;
+
+    private List<Models.Lehrer> lehrerList()
+    {
+        return Storage.ListLehrer();
+    }
+
+    private void Hinzufügen()
+    {
+        if (string.IsNullOrWhiteSpace(neuerLehrer.Name) || lehrerList().Any(l => l.Name.Equals(neuerLehrer.Name, StringComparison.OrdinalIgnoreCase)))
+        {
+            showErrorMessage = true;
+            showSuccessMessage = false;
+            return;
+        }
+
+        neuerLehrer.NichtVerfügbarTage = ParseNichtVerfügbarTage(neuerLehrer.NichtVerfügbarTageText);
+
+        if (neuerLehrer.NichtVerfügbarTage == null)
+        {
+            showErrorMessage = true;
+            showSuccessMessage = false;
+            return;
+        }
+
+        Storage.SetLehrer(neuerLehrer);
+        neuerLehrer = new Models.Lehrer();
+
+        showErrorMessage = false;
+        showSuccessMessage = true;
+        StateHasChanged();
+        Task.Delay(3000).ContinueWith(_ =>
+        {
+            showSuccessMessage = false;
+            StateHasChanged();
+        });
+    }
+
+    private List<DayOfWeek> ParseNichtVerfügbarTage(string input)
+    {
+        if (string.IsNullOrWhiteSpace(input))
+        {
+            return new List<DayOfWeek>();
+        }
+
+        var days = input
+            .Split(',')
+            .Select(s => s.Trim());
+
+        var validDays = new List<string> { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "1", "2", "3", "4", "5" };
+
+        if (days.All(d => validDays.Contains(d)))
+        {
+            return days.Select(s => s.Length == 1 ? (DayOfWeek)(s[0] - '0') : Enum.Parse<DayOfWeek>(s)).ToList();
+        }
+
+        return null;
+    }
+
+
+    private void EditLehrer(Models.Lehrer lehrer)
+    {
+        PopUpLehrerName = lehrer.Name;
+        PopUpLehrerNichtVerfügbarTageText = lehrer.NichtVerfügbarTageText;
+        selectedLehrer = lehrer;
+    }
+
+    private void Speichern()
+    {
+        if (string.IsNullOrWhiteSpace(PopUpLehrerName) || lehrerList().Any(l => l.Name.Equals(PopUpLehrerName, StringComparison.OrdinalIgnoreCase) && l != selectedLehrer))
+        {
+            editModalError = true;
+            return;
+        }
+
+        var parsedNichtVerfügbarTage = ParseNichtVerfügbarTage(PopUpLehrerNichtVerfügbarTageText);
+
+        if (parsedNichtVerfügbarTage == null)
+        {
+            editModalError = true;
+            return;
+        }
+
+        selectedLehrer.NichtVerfügbarTage = parsedNichtVerfügbarTage;
+
+        selectedLehrer.Name = PopUpLehrerName;
+        selectedLehrer.NichtVerfügbarTageText = PopUpLehrerNichtVerfügbarTageText;
+
+        Storage.SetLehrer(selectedLehrer);
+
+        selectedLehrer = null;
+        editModalError = false;
+    }
+
+
+
+    private void Löschen()
+    {
+        Storage.DeleteLehrer(selectedLehrer.ID);
+        selectedLehrer = null;
+    }
+
+    private void CloseModal()
+    {
+        selectedLehrer = null;
+    }
+}

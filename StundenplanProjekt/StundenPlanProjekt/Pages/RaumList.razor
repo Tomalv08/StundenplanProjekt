@@ -1,0 +1,181 @@
+﻿<!-- RaumList.razor -->
+@page "/RaumList"
+@inject StundenPlanProjekt.Models.Storage Storage
+@using BlazorBootstrap
+<h3>Räume verwalten</h3>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Sitzplatzanzahl</th>
+            <th>Ausstattung</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var raum in raumList())
+        {
+            <tr>
+                <td>@raum.Name</td>
+                <td>@raum.Sitzplatzanzahl</td>
+                <td>@raum.Ausstattung</td>
+                <td>
+                    <button class="btn btn-primary" @onclick="() => EditRaum(raum)">Bearbeiten</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (selectedRaum != null)
+{
+    <div class="modal fade show" tabindex="-1" style="display: block; background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Raum bearbeiten</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <label for="editRaumName" class="form-label">Name:</label>
+                    <input id="editRaumName" class="form-control" @bind="PopUpRaumName" />
+                    <label for="editRaumSitzplatzanzahl" class="form-label">Sitzplatzanzahl:</label>
+                    <input id="editRaumSitzplatzanzahl" class="form-control" type="number" @bind="PopUpRaumSitzplatzanzahl" />
+                    <label for="editRaumAusstattung" class="form-label">Ausstattung:</label>
+                    <input id="editRaumAusstattung" class="form-control" @bind="PopUpRaumAusstattung" />
+                    @if (editModalError)
+                    {
+                        <p style="color: red; padding-top: 10px;">Der Name wird bereits verwendet oder die Sitzplatzanzahl ist unter 1 oder Sie haben noch leere Eingaben!</p>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-success" @onclick="Speichern">Speichern</button>
+                    <button class="btn btn-danger" @onclick="Löschen">Löschen</button>
+                    <button class="btn btn-secondary" @onclick="CloseModal">Abbrechen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="mt-4">
+    <h4>Neuen Raum hinzufügen</h4>
+    @if (showErrorMessage)
+    {
+        <div class="alert alert-danger" role="alert">
+            Der Name wird bereits verwendet oder die Sitzplatzanzahl ist unter 1 oder Sie haben noch leere Eingaben!
+        </div>
+    }
+    else if (showSuccessMessage)
+    {
+        <div class="alert alert-success" role="alert">
+            Ein neuer Raum wurde erfolgreich hinzugefügt!
+        </div>
+    }
+
+    <div class="mb-3">
+        <label for="neuerRaumName" class="form-label">Name:</label>
+        <input id="neuerRaumName" class="form-control" @bind="neuerRaum.Name" />
+    </div>
+    <div class="mb-3">
+        <label for="neuerRaumSitzplatzanzahl" class="form-label">Sitzplatzanzahl:</label>
+        <input id="neuerRaumSitzplatzanzahl" class="form-control" type="number" @bind="neuerRaum.Sitzplatzanzahl" />
+    </div>
+    <div class="mb-3">
+        <label for="neuerRaumAusstattung" class="form-label">Ausstattung:</label>
+        <input id="neuerRaumAusstattung" class="form-control" @bind="neuerRaum.Ausstattung" />
+    </div>
+    <button class="btn btn-success" @onclick="Hinzufügen">Hinzufügen</button>
+</div>
+
+@code {
+
+    private Models.Raum neuerRaum = new Models.Raum();
+    private Models.Raum selectedRaum;
+    private string PopUpRaumName;
+    private int PopUpRaumSitzplatzanzahl;
+    private string PopUpRaumAusstattung;
+
+    private bool showErrorMessage = false;
+    private bool showSuccessMessage = false;
+    private bool editModalError = false;
+
+    private List<Models.Raum> raumList()
+    {
+        return Storage.ListRaum();
+    }
+
+    private void Hinzufügen()
+    {
+        if (string.IsNullOrWhiteSpace(neuerRaum.Name) || string.IsNullOrWhiteSpace(neuerRaum.Ausstattung) || neuerRaum.Sitzplatzanzahl <= 0)
+        {
+            showErrorMessage = true;
+            showSuccessMessage = false;
+            return;
+        }
+        if (raumList().Any(r => r.Name.Equals(neuerRaum.Name, StringComparison.OrdinalIgnoreCase)))
+        {
+            showErrorMessage = true;
+            showSuccessMessage = false;
+            return;
+        }
+
+        Storage.SetRaum(neuerRaum);
+        neuerRaum = new Models.Raum();
+
+        showErrorMessage = false;
+        showSuccessMessage = true;
+        StateHasChanged();
+        Task.Delay(3000).ContinueWith(_ =>
+        {
+            showSuccessMessage = false;
+            StateHasChanged();
+        });
+    }
+
+
+    private void EditRaum(Models.Raum raum)
+    {
+        PopUpRaumName = raum.Name;
+        PopUpRaumAusstattung = raum.Ausstattung;
+        PopUpRaumSitzplatzanzahl = raum.Sitzplatzanzahl;
+        selectedRaum = raum;
+    }
+
+    private void Speichern()
+    {
+
+        if (string.IsNullOrWhiteSpace(PopUpRaumName) || string.IsNullOrWhiteSpace(PopUpRaumAusstattung) || PopUpRaumSitzplatzanzahl <= 0)
+        {
+            editModalError = true;
+            return;
+        }
+        if (raumList().Any(r => r.Name.Equals(PopUpRaumName, StringComparison.OrdinalIgnoreCase) && r != selectedRaum))
+        {
+            editModalError = true;
+            return;
+        }
+
+        
+        selectedRaum.Name = PopUpRaumName;
+        selectedRaum.Sitzplatzanzahl = PopUpRaumSitzplatzanzahl;
+        selectedRaum.Ausstattung = PopUpRaumAusstattung;
+        Storage.SetRaum(selectedRaum);
+        selectedRaum = null;
+        editModalError = false;
+        
+    }
+
+
+    private void Löschen()
+    {
+        Storage.DeleteRaum(selectedRaum.ID);
+        selectedRaum = null;
+    }
+
+    private void CloseModal()
+    {
+        selectedRaum = null;
+    }
+}

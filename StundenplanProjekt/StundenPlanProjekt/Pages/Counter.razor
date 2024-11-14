@@ -1,0 +1,366 @@
+﻿@page "/counter"
+@using Models
+@inject StundenPlanProjekt.Models.Storage Storage
+<h3>Create Table</h3>
+
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-6">
+            <form>
+                <div class="mb-3">
+                    <label for="tableName" class="form-label">Stundenplan:</label>
+                </div>
+                @if (currentStundenplan == null)
+                {
+                    <div class="mb-3">
+                        <button type="button" class="btn btn-primary" @onclick="ShowStundenplanModal" style="margin-top: -15px;">Stundenplan auswählen</button>
+                    </div>
+                }
+                else
+                {
+                    <div class="mb-3">
+                        <button type="button" class="btn btn-primary" @onclick="ShowStundenplanModal" style="margin-top: -15px;">@currentStundenplanName</button>
+                    </div>
+                }
+
+
+                <div class="mb-3">
+                    <label for="day" class="form-label">Day:</label>
+                    <select id="day" class="form-select" @bind="selectedDay">
+                        <option value="" disabled selected>Select an option</option>
+                        <option value="Monday">Monday</option>
+                        <option value="Tuesday">Tuesday</option>
+                        <option value="Wednesday">Wednesday</option>
+                        <option value="Thursday">Thursday</option>
+                        <option value="Friday">Friday</option>
+                    </select>
+                </div>
+
+                <div class="mb-3">
+                    <label for="hour" class="form-label">Hour:</label>
+                    <input id="hour" type="number" min="8" max="17" class="form-control" @bind="selectedHour" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="room" class="form-label">Room:</label>
+                    <input id="room" class="form-control" @bind="room" />
+                </div>
+
+                <div class="mb-3">
+                    <label for="description" class="form-label">Description:</label>
+                    <input id="description" class="form-control" @bind="description" />
+                </div>
+
+                <button type="button" class="btn btn-primary" @onclick="AddHour">Add Hour</button>
+            </form>
+        </div>
+
+        <div class="col-md-6">
+            <h4>Added Hours</h4>
+            <div style="overflow-y: auto; height: 400px">
+                <table class="table table-striped">
+                    <thead>
+                        <tr>
+                            <th>Day</th>
+                            <th>Time</th>
+                            <th>Description</th>
+                            <th>Room</th>
+                            <th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @if (currentStundenplan != null)
+                        {
+                            @foreach (var tableEntry in currentStundenplan.TableEntries)
+                            {
+                                <tr style="@GetRowStyle(tableEntry)">
+                                    <td>@tableEntry.Day</td>
+                                    <td>@tableEntry.Hour</td>
+                                    <td>@tableEntry.Description</td>
+                                    <td>@tableEntry.Room</td>
+                                    <td>
+                                        <button class="btn btn-danger" @onclick="() => DeleteHour(tableEntry)">Delete</button>
+                                        <button class="btn btn-primary" @onclick="() => ShowEditModal(tableEntry)">Edit</button>
+                                    </td>
+                                </tr>
+                            }
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+@if (currentStundenplan != null)
+{
+    <table class="table" style="table-layout: fixed;">
+        <thead>
+            <tr>
+                <th></th>
+                @foreach (var day in daysOfWeek)
+                {
+                    <th>@day</th>
+                }
+            </tr>
+        </thead>
+        <tbody>
+            @for (int hour = 8; hour <= 17; hour++)
+            {
+                <tr>
+                    <td>@hour:00 - @(hour + 1):00</td>
+                    @foreach (var day in daysOfWeek)
+                    {
+                        var tableEntry = currentStundenplan.TableEntries.FirstOrDefault(e => e.Day == day && e.Hour == hour);
+                        <td class="border-start border-end" style="background-color:@GetCellStyle(tableEntry);">
+                            @if (tableEntry != null)
+                            {
+                                <div style="font-weight: 800;">@tableEntry.Description</div>
+                                <div style="font-size: small;">@tableEntry.Room</div>
+                            }
+                        </td>
+                    }
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+else
+{
+    <p>No tables created yet.</p>
+}
+<!-- Stundenplan Modal -->
+<div class="modal" tabindex="-1" role="dialog" style="display: @(showStundenplanModal ? "block" : "none")">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content shadow">
+            <div class="modal-header">
+                <h5 class="modal-title">Stundenplan auswählen</h5>
+                <button type="button" class="btn-close" aria-label="Close" @onclick="CloseStundenplanModal"></button>
+            </div>
+            <div class="modal-body">
+                <div class="container-fluid">
+                    @if (stundenplaene.Count != 0)
+                    {
+                        <div style="overflow-y: auto; height: 200px">
+                            <table class="table">
+                                <tbody>
+                                    <tr>
+                                        <th>Stundenplan</th>
+                                        <th>Anz Lektionen</th>
+                                    </tr>
+                                    @foreach (var table in stundenplaene)
+                                    {
+                                        <tr>
+                                            <td>@table.TableName</td>
+                                            <td>@table.TableEntries.Count</td>
+                                            <td>
+                                                <button class="btn btn-danger" @onclick="() => DeleteTable(table)">Delete</button>
+                                                <button class="btn btn-primary" @onclick="() => SelectTable(table)" disabled="@IsButtonDisabled(table)">Select</button>
+                                            </td>
+                                        </tr>
+                                    }
+                                </tbody>
+                            </table>
+                        </div>
+
+                    }
+                    else
+                    {
+                        <p>Es wurden noch keine Stundenpläne erstellt.</p>
+                    }
+                </div>
+                <div class="row mt-3">
+                    <label for="tableName" class="form-label">Stundenplan hinzufügen:</label>
+                    <div class="col-md-8">
+                        <input id="tableName" class="form-control" @bind="currentStundenplanName" />
+                    </div>
+                    <div class="col-md-4 d-flex flex-column align-items-start">
+                        <button class="btn btn-success w-100 mb-3" @onclick="AddTable">Hinzufügen</button>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" @onclick="SaveStundenplan">Save Changes</button>
+                <button type="button" class="btn btn-secondary" @onclick="CloseStundenplanModal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+<!-- Edit Modal -->
+<div class="modal" tabindex="-1" role="dialog" style="display: @(showEditModal ? "block" : "none")">
+    <div class="modal-dialog" role="document">
+        <div class="modal-content shadow">
+            <div class="modal-header">
+                <h5 class="modal-title">Edit Hour</h5>
+                <button type="button" class="btn-close" aria-label="Close" @onclick="CloseEditModal"></button>
+            </div>
+            <div class="modal-body">
+                <label for="editDay" class="form-label">Day:</label>
+                <select id="editDay" class="form-select" @bind="editDay">
+                    <option value="Monday">Monday</option>
+                    <option value="Tuesday">Tuesday</option>
+                    <option value="Wednesday">Wednesday</option>
+                    <option value="Thursday">Thursday</option>
+                    <option value="Friday">Friday</option>
+                </select>
+
+                <label for="editHour" class="form-label" style="margin-top: 13px;">Hour:</label>
+                <input id="editHour" type="number" min="8" max="17" class="form-control" @bind="editHour" />
+
+                <label for="editDescription" class="form-label" style="margin-top: 13px;">Description:</label>
+                <input id="editDescription" class="form-control" @bind="editDescription" />
+
+                <label for="editRoom" class="form-label" style="margin-top: 13px;">Room:</label>
+                <input id="editRoom" class="form-control" @bind="editRoom" />
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary" @onclick="SaveEdit">Save Changes</button>
+                <button type="button" class="btn btn-secondary" @onclick="CloseEditModal">Close</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+@code {
+    private string tableName;
+    private string selectedDay;
+    private int selectedHour;
+    private string description;
+    private string room;
+
+    //private List<TableEntry> tableEntries = new List<TableEntry>();
+    private List<Models.Stundenplan> stundenplaene = new List<Models.Stundenplan>();
+    private string currentStundenplanName = "";
+    private Models.Stundenplan currentStundenplan;
+    private Models.Stundenplan selectedTable;
+
+
+    // Edit modal variables
+    private bool showEditModal = false;
+    private bool showStundenplanModal = false;
+    private TableEntry editingEntry;
+    private string editDay;
+    private int editHour;
+    private string editDescription;
+    private string editRoom;
+    private int AddedHoursCount = 0;
+
+    private string[] daysOfWeek = { "Monday", "Tuesday", "Wednesday", "Thursday", "Friday" };
+
+    private string GetCellStyle(Models.TableEntry tableEntry)
+    {
+        return tableEntry != null ? "cornflowerblue" : "";
+    }
+
+    private void AddHour()
+    {
+        /*var existingStundenplan = stundenplaene.FirstOrDefault(stundenplan => stundenplan.TableName == currentStundenplanTitle);
+        if (existingStundenplan == null)
+            {
+            var newStundenplan = new Models.Stundenplan { TableName = currentStundenplanTitle };
+            stundenplaene.Add(newStundenplan);
+            currentStundenplan = newStundenplan;
+        }
+        else
+            {
+            currentStundenplan = existingStundenplan;
+        }*/
+        var tableEntry = new TableEntry
+            {
+                Day = selectedDay,
+                Hour = selectedHour,
+                Room = room,
+                Description = description
+            };
+
+        currentStundenplan.TableEntries.Add(tableEntry);
+
+        // Clear input fields after adding an hour
+        selectedDay = string.Empty;
+        selectedHour = 8;
+        room = string.Empty;
+        description = string.Empty;
+        AddedHoursCount++;
+    }
+    private void AddTable()
+    {
+        var newStundenplan = new Models.Stundenplan { TableName = currentStundenplanName };
+        stundenplaene.Add(newStundenplan);
+        Storage.setStundenplan(newStundenplan);
+        //currentStundenplan = newStundenplan;
+
+        // Clear input field after adding a new table
+        currentStundenplanName = string.Empty;
+    }
+
+    private void DeleteHour(TableEntry tableEntry)
+    {
+        currentStundenplan.TableEntries.Remove(tableEntry);
+    }
+    private void DeleteTable(Models.Stundenplan stundenplan)
+    {
+        stundenplaene.Remove(stundenplan);
+    }
+    private void ShowStundenplanModal()
+    {
+        showStundenplanModal = true;
+    }
+    private void SelectTable(Models.Stundenplan selectedStundenplan)
+    {
+        selectedTable = selectedStundenplan;
+    }
+    private void CloseStundenplanModal()
+    {
+        showStundenplanModal = false;
+    }
+    private void SaveStundenplan()
+    {
+        currentStundenplan = selectedTable;
+        currentStundenplanName = currentStundenplan.TableName;
+        showStundenplanModal = false;
+    }
+    private bool IsButtonDisabled(Models.Stundenplan table)
+    {
+        return table == selectedTable;
+    }
+
+    private void ShowEditModal(TableEntry tableEntry)
+    {
+        editingEntry = tableEntry;
+        editDay = tableEntry.Day;
+        editHour = tableEntry.Hour;
+        editDescription = tableEntry.Description;
+        editRoom = tableEntry.Room;
+        showEditModal = true;
+    }
+
+    private void SaveEdit()
+    {
+        // Update the entry with the edited values
+        editingEntry.Day = editDay;
+        editingEntry.Hour = editHour;
+        editingEntry.Description = editDescription;
+        editingEntry.Room = editRoom;
+
+        // Close the edit modal
+        showEditModal = false;
+    }
+
+    private void CloseEditModal()
+    {
+        // Reset modal variables
+        editingEntry = null;
+        editDay = string.Empty;
+        editHour = 8;
+        editDescription = string.Empty;
+        editRoom = string.Empty;
+        showEditModal = false;
+    }
+
+    private string GetRowStyle(TableEntry tableEntry)
+    {
+        return tableEntry.Hour % 2 == 0 ? "background-color: #lightblue;" : string.Empty;
+    }
+}

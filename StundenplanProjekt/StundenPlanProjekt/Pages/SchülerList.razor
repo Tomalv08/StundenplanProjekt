@@ -1,0 +1,141 @@
+﻿    <!-- SchülerList.razor -->
+    @page "/SchülerList"
+    @inject StundenPlanProjekt.Models.Storage Storage
+
+    <h3>Schüler verwalten</h3>
+
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Ausbildungstyp</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var schüler in schülerList())
+            {
+                <tr>
+                    <td>@schüler.Name</td>
+                    <td>@schüler.Ausbildungstyp</td>
+                    <td><button class="btn btn-primary" @onclick="() => EditSchüler(schüler)">Bearbeiten</button></td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    @if (selectedSchüler != null)
+    {
+        <div class="modal fade show" tabindex="-1" style="display: block; background: rgba(0, 0, 0, 0.5);">
+            <div class="modal-dialog">
+                <div class="modal-content">
+                    <div class="modal-header">
+                        <h5 class="modal-title">Schüler bearbeiten</h5>
+                        <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                    </div>
+                    <div class="modal-body">
+                        <label for="editSchülerName" class="form-label">Name:</label>
+                        <input id="editSchülerName" class="form-control" @bind="PopUpSchülerName" />
+
+                        <label for="editSchülerAusbildungstyp" class="form-label">Ausbildungstyp:</label>
+                        <input id="editSchülerAusbildungstyp" class="form-control" @bind="PopUpAusbildungstyp" />
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-success" @onclick="Speichern">Speichern</button>
+                        <button class="btn btn-danger" @onclick="Löschen">Löschen</button>
+                        <button class="btn btn-secondary" @onclick="CloseModal">Abbrechen</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    }
+
+    <div class="mt-4">
+        <h4>Neuen Schüler hinzufügen</h4>
+        @if (showErrorMessage)
+        {
+            <div class="alert alert-danger" role="alert">
+                Der Name wird bereits verwendet oder Sie haben noch leere Eingaben!
+            </div>
+        }
+        else if (showSuccessMessage)
+        {
+            <div class="alert alert-success" role="alert">
+                Ein neuer Schüler wurde erfolgreich hinzugefügt!
+            </div>
+        }
+
+        <div class="mb-3">
+            <label for="neuerSchülerName" class="form-label">Name:</label>
+            <input id="neuerSchülerName" class="form-control" @bind="neuerSchüler.Name" />
+        </div>
+        <div class="mb-3">
+            <label for="neuerSchülerAusbildungstyp" class="form-label">Ausbildungstyp:</label>
+            <div class="form-floating">
+                <select class="form-select" id="neuerSchülerAusbildungstyp" aria-label="Floating label select example" @bind="neuerSchüler.Ausbildungstyp">
+                    @foreach (var ausbildungstyp in Storage.ListAusbildungstyp())
+                    {
+                    <option value="@ausbildungstyp.Name" selected="@IsSelected(ausbildungstyp)">@ausbildungstyp.Name </option>
+                    }
+
+                </select>
+                <label for="floatingSelect">Wählen Sie Ihren Ausbildungstyp</label>
+            </div>
+        </div>
+        <button class="btn btn-success" @onclick="Hinzufügen">Hinzufügen</button>
+    </div>
+
+    @code {
+
+        private Models.Schüler neuerSchüler = new Models.Schüler();
+        private Models.Schüler selectedSchüler;
+        private string PopUpSchülerName;
+        private string PopUpAusbildungstyp;
+
+        private bool showErrorMessage = false;
+        private bool showSuccessMessage = false;
+
+    bool IsSelected(Models.Ausbildungstyp ausbildungstyp)
+    {
+        return neuerSchüler.Ausbildungstyp == ausbildungstyp.Name;
+    }
+        private List<Models.Schüler> schülerList()
+        {
+            return Storage.ListSchüler();
+        }
+
+        private void Hinzufügen()
+        {
+            Storage.SetSchüler(neuerSchüler);
+            neuerSchüler = new Models.Schüler();
+        }
+
+        private void EditSchüler(Models.Schüler schüler)
+        {
+            PopUpSchülerName = schüler.Name;
+            PopUpAusbildungstyp = schüler.Ausbildungstyp;
+
+            selectedSchüler = schüler;
+        }
+
+        private void Speichern()
+        {
+            selectedSchüler.Name = PopUpSchülerName;
+            selectedSchüler.Ausbildungstyp = PopUpAusbildungstyp;
+            Storage.SetSchüler(selectedSchüler);
+            selectedSchüler = null;
+
+        }
+        private void Löschen()
+        {
+            Storage.DeleteSchüler(selectedSchüler.ID);
+            selectedSchüler = null;
+        }
+
+        private void CloseModal()
+        {
+            selectedSchüler = null;
+        }
+
+
+    }

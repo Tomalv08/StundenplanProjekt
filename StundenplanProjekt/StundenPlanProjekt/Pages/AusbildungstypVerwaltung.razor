@@ -1,0 +1,164 @@
+﻿<!-- Ausbildungstypverwaltung.razor -->
+@page "/Ausbildungstypverwaltung"
+@inject StundenPlanProjekt.Models.Storage Storage
+<h3>Ausbildungstypen verwalten</h3>
+
+<table class="table table-striped">
+    <thead>
+        <tr>
+            <th>Name</th>
+            <th>Module (Fächer)</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var ausbildungstyp in AusbildungstypList())
+        {
+            <tr>
+                <td>@ausbildungstyp.Name</td>
+                <td>@ausbildungstyp.ModuleText</td>
+                <td><button class="btn btn-primary" @onclick="() => EditAusbildungstyp(ausbildungstyp)">Bearbeiten</button></td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@if (selectedAusbildungstyp != null)
+{
+    <div class="modal fade show" tabindex="-1" style="display: block; background: rgba(0, 0, 0, 0.5);">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Ausbildungstyp bearbeiten</h5>
+                    <button type="button" class="btn-close" @onclick="CloseModal"></button>
+                </div>
+                <div class="modal-body">
+                    <label for="editAusbildungstypName" class="form-label">Name:</label>
+                    <input id="editAusbildungstypName" class="form-control" @bind="PopUpAusbildungstypName" />
+
+                    <label for="editAusbildungstypModule" class="form-label">Module (kommagetrennt):</label>
+                    <input id="editAusbildungstypModule" class="form-control" @bind="PopUpAusbildungstypModuleText" />
+                    @if (editModalError)
+                    {
+                        <p style="color: red; padding-top: 10px;">Der Name wird bereits verwendet oder Sie haben noch leere Eingaben!</p>
+                    }
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-success" @onclick="Speichern">Speichern</button>
+                    <button class="btn btn-danger" @onclick="Löschen">Löschen</button>
+                    <button class="btn btn-secondary" @onclick="CloseModal">Abbrechen</button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<div class="mt-4">
+    <h4>Neuen Ausbildungstyp hinzufügen</h4>
+
+    @if (showErrorMessage)
+    {
+        <div class="alert alert-danger" role="alert">
+            Der Name wird bereits verwendet oder Sie haben noch leere Eingaben!
+        </div>
+    }
+    else if (showSuccessMessage)
+    {
+        <div class="alert alert-success" role="alert">
+            Ein neuer Ausbildungstyp wurde erfolgreich hinzugefügt!
+        </div>
+    }
+
+    <div class="mb-3">
+        <label for="neuerAusbildungstypName" class="form-label">Name:</label>
+        <input id="neuerAusbildungstypName" class="form-control" @bind="neuerAusbildungstyp.Name" />
+    </div>
+    <div class="mb-3">
+        <label for="neuerAusbildungstypModule" class="form-label">Module (kommagetrennt):</label>
+        <input id="neuerAusbildungstypModule" class="form-control" @bind="neuerAusbildungstyp.ModuleText" />
+    </div>
+    <button class="btn btn-success" @onclick="Hinzufügen">Hinzufügen</button>
+</div>
+
+@code {
+
+    private Models.Ausbildungstyp neuerAusbildungstyp = new Models.Ausbildungstyp();
+    private Models.Ausbildungstyp selectedAusbildungstyp;
+    private string PopUpAusbildungstypName;
+    private string PopUpAusbildungstypModuleText;
+    private bool showErrorMessage = false;
+    private bool showSuccessMessage = false;
+    private bool editModalError = false;
+
+    private List<Models.Ausbildungstyp> AusbildungstypList()
+    {
+        return Storage.ListAusbildungstyp();
+    }
+    private void Hinzufügen()
+    {
+        if (string.IsNullOrWhiteSpace(neuerAusbildungstyp.Name) || string.IsNullOrWhiteSpace(neuerAusbildungstyp.ModuleText))
+        {
+            showErrorMessage = true;
+            showSuccessMessage = false;
+            return;
+        }
+        if (AusbildungstypList().Any(a => a.Name.Equals(neuerAusbildungstyp.Name, StringComparison.OrdinalIgnoreCase)))
+        {
+            showErrorMessage = true;
+            showSuccessMessage = false;
+            return;
+        }
+        Storage.SetAusbildungstyp(neuerAusbildungstyp);
+        neuerAusbildungstyp = new Models.Ausbildungstyp();
+
+        showErrorMessage = false;
+        showSuccessMessage = true;
+        StateHasChanged();
+        Task.Delay(3000).ContinueWith(_ =>
+        {
+            showSuccessMessage = false;
+            StateHasChanged();
+        });
+    }
+
+
+    private void EditAusbildungstyp(Models.Ausbildungstyp ausbildungstyp)
+    {
+        PopUpAusbildungstypName = ausbildungstyp.Name;
+        PopUpAusbildungstypModuleText = ausbildungstyp.ModuleText;
+        selectedAusbildungstyp = ausbildungstyp;
+    }
+
+    private void Speichern()
+    {
+        if (string.IsNullOrWhiteSpace(PopUpAusbildungstypName) || string.IsNullOrWhiteSpace(PopUpAusbildungstypModuleText))
+        {
+            editModalError = true;
+            return;
+        }
+        if (AusbildungstypList().Any(a => a.Name.Equals(PopUpAusbildungstypName, StringComparison.OrdinalIgnoreCase) && a.Name != selectedAusbildungstyp.Name))
+        {
+            editModalError = true;
+            return;
+        }
+
+        selectedAusbildungstyp.Name = PopUpAusbildungstypName;
+        selectedAusbildungstyp.ModuleText = PopUpAusbildungstypModuleText;
+        Storage.SetAusbildungstyp(selectedAusbildungstyp);
+
+        editModalError = false;
+        StateHasChanged();
+        selectedAusbildungstyp = null;
+    }
+
+    private void Löschen()
+    {
+        Storage.DeleteAusbildungstyp(selectedAusbildungstyp.Name);
+        selectedAusbildungstyp = null;
+    }
+
+    private void CloseModal()
+    {
+        selectedAusbildungstyp = null;
+    }
+}
